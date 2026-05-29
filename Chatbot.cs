@@ -1,154 +1,154 @@
 ﻿using System;
-using static System.Console; // Allows us to use WriteLine() directly
-using System.Media; //  For WAV playback
-using System.IO;// For path handling, I forgot it so I had to google it
-using System.Threading; // For the typing effect (delays), also had to google it coz I couldn't get it 
+using System.Collections.Generic;
+using System.Linq;
 
-namespace VoicePOE
+namespace POE_Part2
 {
     public class Chatbot
     {
-        
-        // Property to store the user's name for personalization
-        public string UserName { get; set; }
+        private Dictionary<string, string> responses;
+        private List<string> phishingTips;
+        private List<string> passwordTips;
+        private List<string> privacyTips;
 
-        // This method runs the tasks in the correct order
-        public void Start()
+        private string lastTopic;
+        private Dictionary<string, string> memory;
+        private Random rand;
+
+        public Chatbot()
         {
-            PlayVoiceGreeting();//Voice
-            DisplayAsciiHeader(); //Logo and Colors
-            PerformSetup();// Name and Validation
-            RunChatLoop(); // The Conversation
+            responses = new Dictionary<string, string>()
+            {
+                {"scam", "Scams usually try to scare you or rush you. Always double check before giving info."},
+                {"malware", "Malware often hides in downloads or attachments. Keep antivirus updated."},
+                {"update", "Updates fix security holes. Don’t skip them."}
+            };
+
+            phishingTips = new List<string>()
+            {
+                "Watch out for emails asking for personal info.",
+                "Hover over links before clicking to see where they go.",
+                "If something feels off, slow down and check.",
+                "Bad spelling or weird formatting is often a red flag."
+            };
+
+            passwordTips = new List<string>()
+            {
+                "Use long passphrases instead of short words.",
+                "Don’t use birthdays or names.",
+                "Turn on two-factor authentication.",
+                "Password managers help keep track of unique passwords."
+            };
+
+            privacyTips = new List<string>()
+            {
+                "Check your social media privacy settings.",
+                "Think twice before sharing personal details online.",
+                "Use encrypted apps for sensitive chats.",
+                "Clear cookies and history to reduce tracking."
+            };
+
+            memory = new Dictionary<string, string>();
+            rand = new Random();
         }
 
-        //Typing effect to simulate a real conversation
-        private void TypeWrite(string text)
+        public string GetResponse(string input)
         {
-            foreach (char c in text)
+            if (string.IsNullOrWhiteSpace(input))
+                return "I didn’t catch that, can you say it differently?";
+
+            // Normalize input
+            input = input.Trim();
+            string lowerInput = input.ToLower();
+            string[] words = lowerInput.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+
+            // --- Small Talk ---
+            if (words.Contains("hi") || words.Contains("hello"))
+                return "Hey there! Nice to see you. How are you doing today?";
+
+            if (lowerInput.Contains("how are you"))
+                return "I’m feeling great, thanks for asking. Always ready to chat about security or just hang out. How about you?";
+
+            if (lowerInput.Contains("i'm good") || lowerInput.Contains("im good"))
+                return "That’s awesome! Glad you’re doing well.";
+
+            // --- Name memory ---
+            if (lowerInput.StartsWith("my name is"))
             {
-                Write(c);
-                Thread.Sleep(30); // 30ms delay makes it look like the bot is typing
-            }
-            WriteLine();
-        }
-
-        private void PlayVoiceGreeting()
-        {
-            try
-            {
-                // Using your logic to find the file in the project folder
-                string path_directory = AppDomain.CurrentDomain.BaseDirectory;
-                string recordPath = path_directory.Replace("\\bin\\Debug", "");
-                string record = Path.Combine(recordPath, "Halo!.wav");
-
-                using (SoundPlayer speechObj = new SoundPlayer(record))
-                {
-                    speechObj.PlaySync(); // Plays audio before showing the text
-                }
-            }
-            catch (Exception error)
-            {
-                // Graceful error handling
-                WriteLine($"[Audio System Note]: {error.Message}");
-            }
-        }
-
-        private void DisplayAsciiHeader()
-        {
-            // ASCII Art and Colour Formatting
-            ForegroundColor = ConsoleColor.Cyan;
-            WriteLine("=========================================================");
-            // Using @ allows us to print the ASCII art easily
-            WriteLine(@"
-              _______     ______  ______ _____  
-             / ____\ \   / /  _ \|  ____|  __ \ 
-            | |     \ \_/ /| |_) | |__  | |__) |
-            | |      \   / |  _ <|  __| |  _  / 
-            | |____   | |  | |_) | |____| | \ \ 
-             \_____|  |_|  |____/|______|_|  \_\
-                                                  
-                CYBERSECURITY AWARENESS BOT");
-            WriteLine("=========================================================");
-            ResetColor(); // Very important, reset so the whole screen isn't blue
-        }
-
-        private void PerformSetup()
-        {
-            ForegroundColor = ConsoleColor.Yellow;
-            TypeWrite("Bot: Hello! I am your Cybersecurity Assistant.");
-            TypeWrite("Bot: To get started, please tell me your name:");
-            ResetColor();
-
-            Write("User Name: ");
-            string input = ReadLine();
-
-            // Input Validation, checks for empty entries
-            while (string.IsNullOrWhiteSpace(input))
-            {
-                ForegroundColor = ConsoleColor.Red;
-                TypeWrite("Bot: I'm sorry, I need a name to continue. Please enter your name:");
-                ResetColor();
-                input = ReadLine();
+                string name = input.Substring(10).Trim();
+                memory["username"] = name;
+                return $"Cool, I’ll remember your name is {name}.";
             }
 
-            UserName = input; // Save name for Task 3
-            TypeWrite($"\nBot: Welcome, {UserName}! How can I help you stay safe today?");
-            WriteLine("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-");
-        }
+            if (lowerInput.Contains("what is my name") && memory.ContainsKey("username"))
+                return $"You told me your name is {memory["username"]}.";
 
-        private void RunChatLoop()
-        {
-            bool active = true;
-            while (active)
+            // --- Feelings memory ---
+            if (lowerInput.StartsWith("i feel"))
             {
-                //spacing for readability
-                WriteLine("\n");
-                ForegroundColor = ConsoleColor.White;
-                Write($"\n{UserName} > ");
-                string input = ReadLine()?.ToLower().Trim(); // Handle input gracefully
+                string feeling = input.Substring(6).Trim();
+                memory["lastFeeling"] = feeling;
+                return $"I hear you. You said you feel {feeling}. Thanks for sharing that.";
+            }
 
-                WriteLine("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-");
+            if (lowerInput.Contains("how did i feel") && memory.ContainsKey("lastFeeling"))
+                return $"Earlier you mentioned feeling {memory["lastFeeling"]}. Do you still feel that way?";
 
-                //Slight delay to simulate thinking
-                Thread.Sleep(500);
-
-                if (string.IsNullOrEmpty(input))
-                {
-                    TypeWrite("Bot: I didn't quite understand that. Could you please rephrase?");
-                }
-                // Predefined responses for specific questions
-                else if (input.Contains("how are you"))
-                {
-                    TypeWrite($"Bot: I'm feeling secure and ready to help, {UserName}!");
-                }
-                else if (input.Contains("purpose"))
-                {
-                    TypeWrite("Bot: My purpose is to help you understand online threats like phishing.");
-                }
-                else if (input.Contains("ask you") || input.Contains("help"))
-                {
-                    TypeWrite("Bot: You can ask me about 'passwords', 'phishing', or 'safe browsing'.");
-                }
-                else if (input.Contains("password"))
-                {
-                    TypeWrite("Bot: [TIP] Use a passphrase of 4 random words for better security.");
-                }
-                else if (input.Contains("phishing"))
-                {
-                    TypeWrite("Bot: [TIP] Check the sender's email address carefully before clicking links.");
-                }
-                else if (input.Contains("exit") || input.Contains("bye"))
-                {
-                    TypeWrite($"Bot: Goodbye {UserName}. Remember to update your software regularly!");
-                    active = false; // Ends the loop and closes the app
-                }
+            if (lowerInput.Contains("i remembered you said"))
+            {
+                if (!string.IsNullOrEmpty(lastTopic))
+                    return $"Yes, I did mention {lastTopic}. Want me to expand on that?";
                 else
-                {
-                    // Default response for unsupported queries
-                    TypeWrite("Bot: I'm not sure about that yet. Try asking 'What can I ask you about?'");
-                }
-                WriteLine("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-");
+                    return "Hmm, I don’t recall saying that yet.";
             }
+
+            // --- Security topics ---
+            if (lowerInput.Contains("password"))
+            {
+                lastTopic = "password";
+                return $"Here’s a password tip: {passwordTips[rand.Next(passwordTips.Count)]}";
+            }
+
+            if (lowerInput.Contains("privacy"))
+            {
+                lastTopic = "privacy";
+                return $"Here’s a privacy tip: {privacyTips[rand.Next(privacyTips.Count)]}";
+            }
+
+            if (lowerInput.Contains("phishing"))
+            {
+                lastTopic = "phishing";
+                return $"Here’s something to watch out for: {phishingTips[rand.Next(phishingTips.Count)]}";
+            }
+
+            if (responses.ContainsKey(lowerInput))
+            {
+                lastTopic = lowerInput;
+                return responses[lowerInput];
+            }
+
+            // --- Continue topic ---
+            if (lowerInput == "more")
+            {
+                if (lastTopic == "phishing")
+                    return $"Another phishing tip: {phishingTips[rand.Next(phishingTips.Count)]}";
+                if (lastTopic == "password")
+                    return $"Another password tip: {passwordTips[rand.Next(passwordTips.Count)]}";
+                if (lastTopic == "privacy")
+                    return $"Another privacy tip: {privacyTips[rand.Next(privacyTips.Count)]}";
+            }
+
+            // --- Mood detection ---
+            if (lowerInput.Contains("worried") || lowerInput.Contains("frustrated") || lowerInput.Contains("scared"))
+                return "I get that. Security stuff can feel stressful, but small steps really help. You’re not alone in this.";
+
+            // --- Exit ---
+            if (words.Contains("exit") || words.Contains("bye"))
+                return "Catch you later! Stay safe online.";
+
+            // --- Fallback ---
+            return "Hmm, I’m not sure about that one. Try asking me about passwords, privacy, phishing, scams, or updates.";
         }
     }
 }
